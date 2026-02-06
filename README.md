@@ -1,16 +1,16 @@
-# flutter_application_1
+Project Title: Sensink-IoT-App
 
-A new Flutter project.
+Description: The SenSink mobile app acts as the control center of the system, connecting ESP32 sensors to users in real time. It helps prevent water waste by sending alerts for running faucets or overflowing containers, while a dashboard shows live flow rate, water level, and pH data remotely and efficiently always.
 
-## Getting Started
+Technologies Used: Flutter, Dart, IoT, Cloud Computing, Firebase
 
-This project is a starting point for a Flutter application.
+Features: 
+  - Waste Detection
+  - Overflow Prevention
+  - Cleanliness Monitoring
 
-A few resources to get you started if this is your first Flutter project:
+Installation Instructions: 
+  Step 1:
+  Step 2:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Setup: Instructions for setting up IoT devices and cloud services.

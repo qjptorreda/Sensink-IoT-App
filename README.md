@@ -10,7 +10,7 @@ Features:
   - Cleanliness Monitoring
 
 Installation Instructions: 
-  Step 1:
-  Step 2:
+  - Step 1:
+  - Step 2:
 
 Setup: Instructions for setting up IoT devices and cloud services.

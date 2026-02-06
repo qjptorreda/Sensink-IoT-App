@@ -9,12 +9,12 @@
   - Cloud Computing
   - Firebase
 
-**Features **
+**Features**
   - Waste Detection
   - Overflow Prevention
   - Cleanliness Monitoring
 
-**Installation Instructions **
+**Installation Instructions**
   - Step 1:
   - Step 2:
 

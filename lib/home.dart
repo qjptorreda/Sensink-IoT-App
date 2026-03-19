@@ -360,17 +360,17 @@ void _cancelTimer() async {
 
 Widget _buildTimerView() {
   return SingleChildScrollView( // Prevents overflow on small screens
-    padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
+    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const SizedBox(height: 20),
+        const SizedBox(height: 40),
         Icon(
           Icons.timer_outlined,
-          size: 80,
+          size: 100,
           color: _timerActive ? Colors.orange : Colors.blueAccent,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 40),
         Text(
           _timerActive ? "Remaining Time" : "Set Timer Duration",
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),

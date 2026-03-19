@@ -4,13 +4,15 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart'; 
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  
+  // The safe Firebase initialization check
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp();
+  }
+
   runApp(const MyApp());
 }
 

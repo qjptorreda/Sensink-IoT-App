@@ -5,22 +5,21 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fs;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'firebase_options.dart';
 import 'home.dart';
+import 'start_screen.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  
   if (Firebase.apps.isEmpty) {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
-  
   runApp(const MyApp());
 }
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

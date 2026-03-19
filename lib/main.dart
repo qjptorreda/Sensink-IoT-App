@@ -9,6 +9,7 @@ import 'start_screen.dart';
 
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   

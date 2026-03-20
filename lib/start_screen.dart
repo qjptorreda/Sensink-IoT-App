@@ -1,5 +1,8 @@
+import 'main.dart'; 
 import 'package:flutter/material.dart';
-import 'main.dart'; // Required for themeNotifier and AuthGate
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});

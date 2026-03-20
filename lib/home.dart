@@ -296,9 +296,10 @@ void _cancelTimer() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('sensor_logs')
-          .where('userId', isEqualTo: uid)
-          .orderBy('timestamp', descending: true)
+            .collection('sensor_logs')
+            .where('userId', isEqualTo: uid)
+            .where('type', isEqualTo: 'ph')
+            .orderBy('timestamp', descending: true)
           .limit(10)
           .snapshots(),
       builder: (context, snapshot) {
@@ -754,13 +755,9 @@ class PHHistoryScreen extends StatelessWidget {
             .orderBy('timestamp', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) return const Center(child: Text("Error loading history"));
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-
+                    if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
           final logs = snapshot.data?.docs ?? [];
           if (logs.isEmpty) return const Center(child: Text("No records found."));
-
-          // Data for graph
           List<FlSpot> spots = logs.asMap().entries.map((e) {
             double val = (e.value.data() as Map<String, dynamic>)['value']?.toDouble() ?? 0.0;
             return FlSpot(e.key.toDouble(), val);

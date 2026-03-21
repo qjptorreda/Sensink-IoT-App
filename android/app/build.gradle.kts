@@ -20,14 +20,13 @@ android {
 
     defaultConfig {
         applicationId = "com.example.flutter_application_1"
-        
-        // MODIFY THIS: Change from flutter.minSdkVersion to 23
-        // This prevents the "Plugin requires a higher Android SDK version" error.
-        minSdk = flutter.minSdkVersion 
+        minSdk = flutter.minSdkVersion
         
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        multiDexEnabled = true
     }
 
     buildTypes {
@@ -39,4 +38,8 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation("androidx.multidex:multidex:2.0.1")
 }

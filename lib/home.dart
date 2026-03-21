@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fl_chart/fl_chart.dart'; // Ensure you added this to pubspec.yaml
 import 'package:intl/intl.dart';
@@ -11,6 +12,7 @@ import 'dart:async';
 // --- GLOBAL THEME ---
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,12 +20,20 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
-  bool _isFaucetOpen = true; // or false depending on your default
+  bool _isFaucetOpen = false; // or false depending on your default
   bool _isProcessing = false;
   bool _timerActive = false; 
   Duration _selectedDuration = const Duration(minutes: 5); 
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String minutes = twoDigits(duration.inMinutes.remainder(60));
+    String seconds = twoDigits(duration.inSeconds.remainder(60));
+    return "$minutes:$seconds";
+  }
+
+final ValueNotifier<Duration> _timeNotifier = ValueNotifier(Duration.zero);
 
   final List<String> _titles = ["Control Panel", "Results", "Faucet Timer", "Account"];
 
@@ -38,19 +48,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    _timeNotifier.value = _selectedDuration;
     _progressController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          setState(() {
-            _isFaucetOpen = !_isFaucetOpen;
-            _isProcessing = false;
-          });
-          _progressController.reset();
-          _showFeedback();
-        }
-      });
+      duration: const Duration(seconds: 10),
+    );
   }
 
   @override
@@ -62,10 +64,45 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  void _handleFaucetTap() {
+  void _toggleValve(bool open) async {
+    setState(() => _isFaucetOpen = open);
+    
+    // This sends the signal to the ESP32 via the cloud
+    await FirebaseFirestore.instance
+        .collection('settings')
+        .doc('faucetControl')
+        .update({'isFaucetOpen': open});
+  }
+
+  void _handleFaucetTapFromStream(bool isOpen) async {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
-    _progressController.forward();
+    try {
+      if (!isOpen) {
+        // OPENING LOGIC
+        final Duration? picked = await _showDurationPicker(context);
+        if (picked == null) {
+          setState(() => _isProcessing = false);
+          return;
+        }
+        _selectedDuration = picked;
+        await _progressController.forward();
+        await _startFaucetTimer();
+      } else {
+        // CLOSING LOGIC
+        await _progressController.forward();
+        await _cancelTimer();
+      }
+    } catch (e) {
+      debugPrint("Toggle failed: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _progressController.reset();
+        });
+      }
+    }
   }
 
   void _showFeedback() {
@@ -81,78 +118,129 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
 // 1. Show the Picker
-void _showDurationPicker(BuildContext context) {
-  showModalBottomSheet(
+Future<Duration?> _showDurationPicker(BuildContext context) async {
+  return await showModalBottomSheet<Duration>(
     context: context,
-    builder: (context) => Container(
-      height: 250,
-      padding: const EdgeInsets.all(20),
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+    ),
+    builder: (context) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text("Select Duration", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Expanded(
-            child: ListWheelScrollView(
-              itemExtent: 40,
-              physics: const FixedExtentScrollPhysics(),
-              onSelectedItemChanged: (index) {
-                setState(() => _selectedDuration = Duration(minutes: (index + 1) * 5));
-              },
-              children: List.generate(12, (index) => Text("${(index + 1) * 5} Minutes")),
-            ),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2)),
           ),
-          ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text("Set Time"))
+          const SizedBox(height: 20),
+          const Text("Select Flow Duration", 
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 10),
+          ListTile(
+            leading: const Icon(Icons.timer_outlined, color: Colors.blue),
+            title: const Text("1 Minute"), 
+            onTap: () => Navigator.pop(context, const Duration(minutes: 1)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.timer_outlined, color: Colors.blue),
+            title: const Text("5 Minutes"), 
+            onTap: () => Navigator.pop(context, const Duration(minutes: 5)),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     ),
   );
 }
 
+
 // 2. Start Timer & Update Firebase
-void _startFaucetTimer() async {
+Future<void> _startFaucetTimer() async {
   final uid = FirebaseAuth.instance.currentUser?.uid;
-  
-  setState(() {
-    _timerActive = true;
-    _isFaucetOpen = true;
-    _remainingTime = _selectedDuration;
-  });
+  if (uid == null) return;
 
-  // 1. Update Firebase
-  await FirebaseFirestore.instance.collection('sensor_data').doc(uid).update({
-    'isFaucetOpen': true,
-    'timerActive': true,
-    'shutOffTime': DateTime.now().add(_selectedDuration).toIso8601String(),
-  });
+  _countdownTimer?.cancel(); // Safety first
 
-  // 2. Start the ticking countdown for the UI
-  _countdownTimer?.cancel(); // Clear any old timer
-  _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-    if (_remainingTime.inSeconds > 0) {
-      setState(() {
+  try {
+    // 1. Update Local UI State
+    setState(() {
+      _timerActive = true;
+      _isFaucetOpen = true;
+      _remainingTime = _selectedDuration;
+      _timeNotifier.value = _remainingTime; // Sync the notifier immediately
+    });
+
+    // 2. SIGNAL TO ESP32 (Realtime Database)
+    // We do this first so the valve opens as soon as the button is pressed
+    await FirebaseDatabase.instance.ref("faucet/status").set(true);
+
+    // 3. LOG TO HISTORY (Firestore)
+    await FirebaseFirestore.instance.collection('sensor_data').doc(uid).set({
+      'isFaucetOpen': true,
+      'timerActive': true,
+      'shutOffTime': DateTime.now().add(_selectedDuration).toIso8601String(),
+    }, SetOptions(merge: true));
+
+    // 4. Start the ticking countdown
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_remainingTime.inSeconds > 0) {
         _remainingTime -= const Duration(seconds: 1);
-      });
-    } else {
-      _cancelTimer(); // Auto-close when hits zero
-    }
-  });
+        _timeNotifier.value = _remainingTime; // Updates UI via ValueListenableBuilder
+      } else {
+        timer.cancel();
+        _cancelTimer(); // Automatically closes valve via Firebase
+      }
+    });
+    
+  } catch (e) {
+    debugPrint("Start Timer Failed: $e");
+    _cancelTimer(); // Revert state and close valve if Firebase fails
+  }
 }
 
-void _cancelTimer() async {
-  final uid = FirebaseAuth.instance.currentUser?.uid;
-  
-  _countdownTimer?.cancel(); // STOPS the ticking immediately
+Future<void> _cancelTimer() async {
+  // 1. Stop the clock immediately to prevent UI flickers
+  _countdownTimer?.cancel();
+  _countdownTimer = null;
 
-  setState(() {
-    _timerActive = false;
-    _isFaucetOpen = false;
-    _remainingTime = Duration.zero;
-  });
+  try {
+    // 2. SIGNAL TO ESP32 (Realtime Database)
+    // We 'await' this to ensure the command is sent before updating UI
+    await FirebaseDatabase.instance.ref("faucet/status").set(true);
 
-  await FirebaseFirestore.instance.collection('sensor_data').doc(uid).update({
-    'isFaucetOpen': false,
-    'timerActive': false,
-    'shutOffTime': null,
-  });
+    // 3. Update Local UI State
+    setState(() {
+      _timerActive = false;
+      _isFaucetOpen = false;
+      _remainingTime = Duration.zero;
+      _isProcessing = false;
+      _timeNotifier.value = Duration.zero; // Reset the notifier as well
+    });
+
+    // 4. LOG TO HISTORY (Firestore)
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await FirebaseFirestore.instance
+          .collection('sensor_data')
+          .doc(uid)
+          .set({
+        'isFaucetOpen': false,
+        'timerActive': false,
+        'shutOffTime': FieldValue.delete(), // Cleaner than 'null' for Firestore
+      }, SetOptions(merge: true));
+    }
+  } catch (e) {
+    debugPrint("Cancel Timer Failed: $e");
+    // Even if Firebase fails, we force the UI to show 'Stopped' for the user
+    setState(() {
+      _timerActive = false;
+      _isFaucetOpen = false;
+      _isProcessing = false;
+    });
+  }
 }
 
 
@@ -173,7 +261,10 @@ void _cancelTimer() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('sensor_data').doc(uid).snapshots(),
+      stream: FirebaseFirestore.instance
+        .collection('sensor_data')
+        .doc(uid)
+        .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) return const Center(child: Text("Error syncing data"));
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
@@ -197,7 +288,7 @@ void _cancelTimer() async {
                       children: [
                         SizedBox(
                           width: 210,
-                          height: 210,
+                          height: 210,   
                           child: AnimatedBuilder(
                             animation: _progressController,
                             builder: (context, child) {
@@ -206,32 +297,36 @@ void _cancelTimer() async {
                                 strokeWidth: 10,
                                 backgroundColor: Colors.black12,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  _isFaucetOpen ? Colors.redAccent : Colors.blueAccent,
-                                ),
+                                (data['isFaucetOpen'] == true) ? Colors.blueAccent : Colors.redAccent,
+                              ),
                               );
                             },
                           ),
                         ),
                         GestureDetector(
-                          onTap: _handleFaucetTap,
+                          onTap: () => _handleFaucetTapFromStream(data['isFaucetOpen'] ?? false), 
                           child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
+                            duration: const Duration(milliseconds: 500),
+                            
                             width: 180,
                             height: 180,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _isProcessing ? Colors.grey.shade800 : (_isFaucetOpen ? Colors.blueAccent : Colors.redAccent),
+                              color: _isProcessing 
+                                  ? Colors.grey.shade800 // The "Syncing" shield
+                                  : ((data['isFaucetOpen'] ?? false) ? Colors.blueAccent : Colors.redAccent), // Stream-based
                               boxShadow: [
                                 BoxShadow(
-                                  color: (_isFaucetOpen ? Colors.blue : Colors.red).withOpacity(0.4),
+                                  color: ((data['isFaucetOpen'] ?? false) ? Colors.blue : Colors.red).withOpacity(0.4),
                                   blurRadius: 30,
                                   spreadRadius: 8,
                                 )
                               ],
-                              border: Border.all(color: Colors.white.withOpacity(0.2), width: 4),
                             ),
                             child: Icon(
-                              _isProcessing ? Icons.hourglass_bottom : (_isFaucetOpen ? Icons.water_drop : Icons.block_flipped),
+                              _isProcessing 
+                                  ? Icons.hourglass_bottom 
+                                  : ((data['isFaucetOpen'] ?? false) ? Icons.water_drop : Icons.block_flipped),
                               color: Colors.white,
                               size: 80,
                             ),
@@ -239,16 +334,21 @@ void _cancelTimer() async {
                         ),
                       ],
                     ),
+
                     const SizedBox(height: 20),
-                    Text(
-                      _isProcessing ? "SYNCING..." : (_isFaucetOpen ? "FAUCET OPEN" : "FAUCET CLOSED"),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: _isProcessing ? Colors.grey : (_isFaucetOpen ? Colors.blueAccent : Colors.redAccent),
-                        letterSpacing: 2.0,
+                      Text(
+                        _isProcessing 
+                            ? "SYNCING..." 
+                            : ((data['isFaucetOpen'] ?? false) ? "FAUCET OPEN" : "FAUCET CLOSED"),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: _isProcessing 
+                              ? Colors.grey.shade800 
+                              : ((data['isFaucetOpen'] ?? false) ? Colors.blueAccent : Colors.redAccent),
+                          letterSpacing: 2.0,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -359,131 +459,136 @@ void _cancelTimer() async {
     );
   }
 
-Widget _buildTimerView() {
-  return SingleChildScrollView( // Prevents overflow on small screens
-    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const SizedBox(height: 40),
-        Icon(
-          Icons.timer_outlined,
-          size: 100,
-          color: _timerActive ? Colors.orange : Colors.blueAccent,
-        ),
-        const SizedBox(height: 40),
-        Text(
-          _timerActive ? "Remaining Time" : "Set Timer Duration",
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 30),
-        
-        // --- THE ROULETTE CARD ---
-        Container(
-          height: 180, // Increased height for better scrolling
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(
-              color: _timerActive 
-                  ? Colors.orange.withOpacity(0.3) 
-                  : Colors.blueAccent.withOpacity(0.1)
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              )
-            ],
+  Widget _buildTimerView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
+      child: Column(
+        children: [
+          // --- 1. ICON & HEADER ---
+          Icon(
+            _timerActive ? Icons.hourglass_top_rounded : Icons.timer_outlined,
+            size: 80,
+            color: _timerActive ? Colors.orange : Colors.blueAccent,
           ),
-          child: _timerActive
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "${_remainingTime.inMinutes}:${(_remainingTime.inSeconds % 60).toString().padLeft(2, '0')}",
-                      style: const TextStyle(
-                        fontSize: 54, 
-                        fontWeight: FontWeight.bold, 
-                        color: Colors.orange,
-                        fontFamily: 'monospace' // Keeps numbers steady
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "REMAINING",
-                      style: TextStyle(
-                        letterSpacing: 2, 
-                        color: Colors.grey, 
-                        fontSize: 12, 
-                        fontWeight: FontWeight.bold
-                      ),
-                    ),
-                  ],
+          const SizedBox(height: 10),
+          Text(
+            _timerActive ? "Faucet is Running" : "Set Duration",
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 40),
+
+          // --- 2. MAIN TIMER / SELECTOR AREA ---
+          Container(
+            height: 250,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 )
-              : ListWheelScrollView.useDelegate(
-                  itemExtent: 50,
-                  perspective: 0.005, // Adds a slight 3D curve effect
-                  diameterRatio: 1.2,
-                  physics: const FixedExtentScrollPhysics(),
-                  onSelectedItemChanged: (index) {
-                    setState(() {
-                      // Correctly maps index 0 to 5 mins, index 1 to 10 mins, etc.
-                      _selectedDuration = Duration(minutes: (index + 1) * 5);
-                    });
-                  },
-                  childDelegate: ListWheelChildBuilderDelegate(
-                    childCount: 12, // 5 to 60 minutes
-                    builder: (context, index) {
-                      final minutes = (index + 1) * 5;
-                      final isSelected = _selectedDuration.inMinutes == minutes;
-                      return Center(
-                        child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 200),
-                          style: TextStyle(
-                            fontSize: isSelected ? 28 : 20,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected ? Colors.blueAccent : Colors.grey.withOpacity(0.5),
-                          ),
-                          child: Text("$minutes Minutes"),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-        ),
-        
-        const SizedBox(height: 50),
-        
-        // --- BUTTON ---
-        SizedBox(
-          width: double.infinity,
-          height: 60,
-          child: ElevatedButton(
-            onPressed: _timerActive ? _cancelTimer : _startFaucetTimer,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _timerActive ? Colors.redAccent : Colors.blueAccent,
-              elevation: 5,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              ],
             ),
-            child: Text(
-              _timerActive ? "STOP TIMER" : "START TIMER",
-              style: const TextStyle(
-                color: Colors.white, 
-                fontSize: 18, 
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.1
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (_timerActive)
+                  // Countdown View with Progress Circle
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 180,
+                        height: 180,
+                        child: ValueListenableBuilder<Duration>(
+                          valueListenable: _timeNotifier,
+                          builder: (context, time, _) {
+                            // Calculate progress percentage
+                            double progress = _selectedDuration.inSeconds > 0 
+                                ? time.inSeconds / _selectedDuration.inSeconds 
+                                : 0;
+                            return CircularProgressIndicator(
+                              value: progress,
+                              strokeWidth: 8,
+                              backgroundColor: Colors.grey.withOpacity(0.1),
+                              valueColor: const AlwaysStoppedAnimation(Colors.orange),
+                            );
+                          },
+                        ),
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ValueListenableBuilder<Duration>(
+                            valueListenable: _timeNotifier,
+                            builder: (context, time, _) => Text(
+                              _formatDuration(time),
+                              style: const TextStyle(fontSize: 42, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const Text("REMAINING", style: TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1.5)),
+                        ],
+                      ),
+                    ],
+                  )
+                else
+                  // Selection View
+                  ListWheelScrollView.useDelegate(
+                    itemExtent: 60,
+                    perspective: 0.003,
+                    diameterRatio: 1.5,
+                    physics: const FixedExtentScrollPhysics(),
+                    onSelectedItemChanged: (index) {
+                      setState(() => _selectedDuration = Duration(minutes: (index + 1) * 5));
+                    },
+                    childDelegate: ListWheelChildBuilderDelegate(
+                      childCount: 12,
+                      builder: (context, index) {
+                        final minutes = (index + 1) * 5;
+                        final isSelected = _selectedDuration.inMinutes == minutes;
+                        return Center(
+                          child: Text(
+                            "$minutes min",
+                            style: TextStyle(
+                              fontSize: isSelected ? 32 : 24,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? Colors.blueAccent : Colors.grey.withOpacity(0.4),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 50),
+
+          // --- 3. ACTION BUTTON ---
+          SizedBox(
+            width: double.infinity,
+            height: 65,
+            child: ElevatedButton.icon(
+              onPressed: _timerActive ? _cancelTimer : _startFaucetTimer,
+              icon: Icon(_timerActive ? Icons.stop_rounded : Icons.play_arrow_rounded, color: Colors.white),
+              label: Text(
+                _timerActive ? "STOP FAUCET" : "START FAUCET",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _timerActive ? Colors.redAccent : Colors.blueAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                elevation: 0,
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 20),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   // --- 4. ACCOUNT VIEW (Original Restored) ---
   Widget _buildAccountManagementView() {

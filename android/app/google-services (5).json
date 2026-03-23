@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "837308570802",
+    "firebase_url": "https://sensink-appdev-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "sensink-appdev",
+    "storage_bucket": "sensink-appdev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:837308570802:android:a88d9d66d0aa2b7788bdab",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "837308570802-bscfci4mvhil6tb6sscc7hdvop3f1d87.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutter_application_1",
+            "certificate_hash": "6b4e803e4acc1861d6468c4cdedcf245acb04516"
+          }
+        },
+        {
+          "client_id": "837308570802-fhcg9srv2gh2ufqh24vd6nk0oo3l9lj7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7TqBQsvD2hgcWMKEGOKPP7a8ptEGy0-o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "837308570802-2rg702g8hj5p0irgioe5a54dshc4nh74.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

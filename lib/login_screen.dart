@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/sign_up.dart';
 // Import your SignUpScreen file here if it is in a different file
-// import 'sign_up_screen.dart'; 
+// import 'sign_up_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -27,7 +27,8 @@ class _LoginScreenState extends State<LoginScreen> {
       // Show error if account doesn't exist
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("No account found with this email. Please sign up first."),
+          content:
+              Text("No account found with this email. Please sign up first."),
           backgroundColor: Colors.red,
         ),
       );
@@ -51,16 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(labelText: "Password"), 
+              decoration: const InputDecoration(labelText: "Password"),
               obscureText: true,
             ),
             const SizedBox(height: 20),
-            
+
             // Login Button
-            ElevatedButton(
-              onPressed: _handleLogin, 
-              child: const Text("Login")
-            ),
+            ElevatedButton(onPressed: _handleLogin, child: const Text("Login")),
 
             const SizedBox(height: 10),
 

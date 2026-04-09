@@ -112,32 +112,33 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
- Future<void> _signInWithGoogle() async {
-  try {
-    // 1. Ensure it is initialized
-    final googleSignIn = GoogleSignIn.instance;
-    await googleSignIn.initialize(); 
+  Future<void> _signInWithGoogle() async {
+    try {
+      // 1. Ensure it is initialized
+      final googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize();
 
-    // 2. Authenticate (Get the User)
-    // Note: 'signIn()' is now often replaced by 'authenticate()'
-    final GoogleSignInAccount? googleUser = await googleSignIn.authenticate();
-    if (googleUser == null) return;
+      // 2. Authenticate (Get the User)
+      // Note: 'signIn()' is now often replaced by 'authenticate()'
+      final GoogleSignInAccount googleUser = await googleSignIn.authenticate();
+      if (googleUser == null) return;
 
-    // 3. Authorize (Get the Access Token)
-    final List<String> scopes = ['email', 'profile'];
-    final authClient = await googleUser.authorizationClient.authorizeScopes(scopes);
+      // 3. Authorize (Get the Access Token)
+      final List<String> scopes = ['email', 'profile'];
+      final authClient =
+          await googleUser.authorizationClient.authorizeScopes(scopes);
 
-    // 4. Create the Firebase Credential
-    final AuthCredential credential = GoogleAuthProvider.credential(
-      idToken: (await googleUser.authentication).idToken,
-      accessToken: authClient.accessToken, // This is where the token moved
-    );
+      // 4. Create the Firebase Credential
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        idToken: (googleUser.authentication).idToken,
+        accessToken: authClient.accessToken, // This is where the token moved
+      );
 
-    await FirebaseAuth.instance.signInWithCredential(credential);
-  } catch (e) {
-    print("Error during Google Sign-In: $e");
+      await FirebaseAuth.instance.signInWithCredential(credential);
+    } catch (e) {
+      print("Error during Google Sign-In: $e");
+    }
   }
-}
 
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -156,19 +157,33 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const Icon(Icons.water_drop, color: Colors.blue, size: 60),
               const SizedBox(height: 10),
-              const Text("SenSink", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+              const Text("SenSink",
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
               const SizedBox(height: 40),
-              _buildTextField(controller: _emailController, label: "Email", icon: Icons.email, isDark: isDark),
+              _buildTextField(
+                  controller: _emailController,
+                  label: "Email",
+                  icon: Icons.email,
+                  isDark: isDark),
               const SizedBox(height: 20),
-              _buildTextField(controller: _passController, label: "Password", icon: Icons.lock, isDark: isDark, obscure: true),
+              _buildTextField(
+                  controller: _passController,
+                  label: "Password",
+                  icon: Icons.lock,
+                  isDark: isDark,
+                  obscure: true),
               const SizedBox(height: 30),
-              _buildAwesomeButton(label: "SIGN IN", onPressed: _signInWithEmail, isLoading: _isLoading),
+              _buildAwesomeButton(
+                  label: "SIGN IN",
+                  onPressed: _signInWithEmail,
+                  isLoading: _isLoading),
               const SizedBox(height: 20),
               OutlinedButton.icon(
                 onPressed: _signInWithGoogle,
                 icon: const Icon(Icons.login),
                 label: const Text("Continue with Google"),
-                style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50)),
               ),
             ],
           ),

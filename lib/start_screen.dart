@@ -1,8 +1,5 @@
-import 'main.dart'; 
+import 'main.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
@@ -20,10 +17,11 @@ class StartScreen extends StatelessWidget {
           // --- Decorative Background Elements ---
           Positioned(top: 150, left: 40, child: _buildChipIcon(isDark)),
           Positioned(bottom: 180, right: 60, child: _buildChipIcon(isDark)),
-          
+
           // Custom painting for the node links
           CustomPaint(
-            size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
+            size: Size(MediaQuery.of(context).size.width,
+                MediaQuery.of(context).size.height),
             painter: NodeLinkPainter(isDark: isDark),
           ),
 
@@ -33,7 +31,8 @@ class StartScreen extends StatelessWidget {
             right: 20,
             child: Row(
               children: [
-                Icon(Icons.settings, color: isDark ? Colors.blue.shade300 : Colors.blue),
+                Icon(Icons.settings,
+                    color: isDark ? Colors.blue.shade300 : Colors.blue),
                 const SizedBox(width: 10),
                 _buildThemeToggle(context),
               ],
@@ -55,7 +54,9 @@ class StartScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isDark ? Colors.white10 : Colors.grey.withOpacity(0.3),
+                          color: isDark
+                              ? Colors.white10
+                              : Colors.grey.withOpacity(0.3),
                           width: 2,
                         ),
                       ),
@@ -66,7 +67,8 @@ class StartScreen extends StatelessWidget {
                       height: 190,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF333333), // Consistent Dark Brand Color
+                        color: const Color(
+                            0xFF333333), // Consistent Dark Brand Color
                         border: Border.all(color: Colors.blue, width: 4),
                         boxShadow: [
                           BoxShadow(
@@ -105,7 +107,7 @@ class StartScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 60),
-                
+
                 // --- GET STARTED BUTTON ---
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 50),
@@ -114,7 +116,8 @@ class StartScreen extends StatelessWidget {
                       // Navigator.pushReplacement ensures the user can't "Go Back" to the start screen
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => const AuthGate()),
+                        MaterialPageRoute(
+                            builder: (context) => const AuthGate()),
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -128,7 +131,10 @@ class StartScreen extends StatelessWidget {
                     ),
                     child: const Text(
                       "GET STARTED",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2),
                     ),
                   ),
                 ),
@@ -141,10 +147,10 @@ class StartScreen extends StatelessWidget {
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.only(bottom: 30),
-              child: Text(
-                "Version 1.0.0", 
-                style: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey, fontSize: 12)
-              ),
+              child: Text("Version 1.0.0",
+                  style: TextStyle(
+                      color: isDark ? Colors.grey.shade600 : Colors.grey,
+                      fontSize: 12)),
             ),
           ),
         ],
@@ -153,11 +159,11 @@ class StartScreen extends StatelessWidget {
   }
 
   Widget _buildChipIcon(bool isDark) {
-    return Icon(
-      Icons.memory, 
-      color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.3), 
-      size: 45
-    );
+    return Icon(Icons.memory,
+        color: isDark
+            ? Colors.white.withOpacity(0.1)
+            : Colors.grey.withOpacity(0.3),
+        size: 45);
   }
 
   Widget _buildThemeToggle(BuildContext context) {
@@ -165,7 +171,7 @@ class StartScreen extends StatelessWidget {
       valueListenable: themeNotifier,
       builder: (context, currentMode, child) {
         final isDark = currentMode == ThemeMode.dark;
-        
+
         return GestureDetector(
           onTap: () {
             // Toggles the global notifier in main.dart
@@ -176,7 +182,8 @@ class StartScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: isDark ? Colors.grey.shade900 : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+              border:
+                  Border.all(color: isDark ? Colors.white10 : Colors.black12),
             ),
             child: Row(
               children: [
@@ -187,8 +194,8 @@ class StartScreen extends StatelessWidget {
                     color: !isDark ? Colors.blue : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.wb_sunny_outlined, 
-                    color: !isDark ? Colors.white : Colors.grey, size: 14),
+                  child: Icon(Icons.wb_sunny_outlined,
+                      color: !isDark ? Colors.white : Colors.grey, size: 14),
                 ),
                 const SizedBox(width: 8),
                 // Dark Mode Icon
@@ -198,8 +205,8 @@ class StartScreen extends StatelessWidget {
                     color: isDark ? Colors.blue : Colors.transparent,
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.nightlight_round_outlined, 
-                    color: isDark ? Colors.white : Colors.grey, size: 14),
+                  child: Icon(Icons.nightlight_round_outlined,
+                      color: isDark ? Colors.white : Colors.grey, size: 14),
                 ),
               ],
             ),
@@ -218,20 +225,28 @@ class NodeLinkPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = isDark ? Colors.blue.withOpacity(0.3) : Colors.blue.withOpacity(0.5)
+      ..color =
+          isDark ? Colors.blue.withOpacity(0.3) : Colors.blue.withOpacity(0.5)
       ..strokeWidth = 1.5;
 
-    final dotPaint = Paint()..color = isDark ? Colors.blue.shade300 : Colors.blue;
+    final dotPaint = Paint()
+      ..color = isDark ? Colors.blue.shade300 : Colors.blue;
 
     // Draw some stylized lines and nodes
-    canvas.drawLine(Offset(size.width * 0.7, size.height * 0.3), Offset(size.width * 0.8, size.height * 0.25), paint);
-    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.25), 8, dotPaint);
+    canvas.drawLine(Offset(size.width * 0.7, size.height * 0.3),
+        Offset(size.width * 0.8, size.height * 0.25), paint);
+    canvas.drawCircle(
+        Offset(size.width * 0.8, size.height * 0.25), 8, dotPaint);
 
-    canvas.drawLine(Offset(size.width * 0.3, size.height * 0.6), Offset(size.width * 0.1, size.height * 0.6), paint);
-    canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.6), 10, dotPaint);
+    canvas.drawLine(Offset(size.width * 0.3, size.height * 0.6),
+        Offset(size.width * 0.1, size.height * 0.6), paint);
+    canvas.drawCircle(
+        Offset(size.width * 0.1, size.height * 0.6), 10, dotPaint);
 
-    canvas.drawLine(Offset(size.width * 0.4, size.height * 0.6), Offset(size.width * 0.2, size.height * 0.8), paint);
-    canvas.drawCircle(Offset(size.width * 0.2, size.height * 0.8), 10, dotPaint);
+    canvas.drawLine(Offset(size.width * 0.4, size.height * 0.6),
+        Offset(size.width * 0.2, size.height * 0.8), paint);
+    canvas.drawCircle(
+        Offset(size.width * 0.2, size.height * 0.8), 10, dotPaint);
   }
 
   @override
